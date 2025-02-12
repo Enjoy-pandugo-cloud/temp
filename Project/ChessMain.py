@@ -13,6 +13,13 @@ DIMENSION = 8
 SQUARE_SIZE = BOARD_HEIGHT // DIMENSION
 MAX_FPS = 60
 IMAGES = {}
+ai_thinking = False
+move_undone = False
+move_finder_process = None
+dragging = False
+drag_piece = None
+drag_start_pos = (0, 0)
+drag_start_square = None
 
 def loadImages():
     """
@@ -66,22 +73,16 @@ def main():
                     location = p.mouse.get_pos()
                     col = location[0] // SQUARE_SIZE
                     row = location[1] // SQUARE_SIZE
-                    if col < DIMENSION and row < DIMENSION:
-                        if dragging:
-                            dragging = False
-                            drag_piece = None
-                            drag_start_square = None
-                            player_clicks = []
-                        if game_state.board[row][col] != "--":
+                    if col < 8 and row < 8:
+                        if game_state.board[row][col] != "--" or (len(player_clicks) == 1 and game_state.board[player_clicks[0][0]][player_clicks[0][1]] != "--"):
                             square_selected = (row, col)
-                            player_clicks = [square_selected]
-                            drag_start_pos = location
-                            dragging = True
-                            drag_piece = game_state.board[row][col]
-                            drag_start_square = (row, col)
-                        else:
-                            player_clicks.append((row, col))
-                            if len(player_clicks) == 2:
+                            player_clicks.append(square_selected)
+                            if len(player_clicks) == 1:
+                                drag_start_pos = location
+                                dragging = True
+                                drag_piece = game_state.board[row][col]
+                                drag_start_square = (row, col)
+                            elif len(player_clicks) == 2:
                                 move = ChessEngine.Move(player_clicks[0], player_clicks[1], game_state.board)
                                 for i in range(len(valid_moves)):
                                     if move == valid_moves[i]:
@@ -93,44 +94,40 @@ def main():
                                         animate = True
                                         square_selected = ()
                                         player_clicks = []
+                                        dragging = False
+                                        drag_piece = None
+                                        drag_start_square = None
                                 if not move_made:
                                     player_clicks = [square_selected]
-                    else:
-                        dragging = False
-                        player_clicks = []
-
             elif e.type == p.MOUSEBUTTONUP:
                 if dragging:
                     location = p.mouse.get_pos()
                     col = location[0] // SQUARE_SIZE
                     row = location[1] // SQUARE_SIZE
-                    if col < DIMENSION and row < DIMENSION:
-                        player_clicks.append((row, col))
-                        if len(player_clicks) == 2:
-                            move = ChessEngine.Move(player_clicks[0], player_clicks[1], game_state.board)
-                            for i in range(len(valid_moves)):
-                                if move == valid_moves[i]:
-                                    promotion_choice = None
-                                    if move.is_pawn_promotion:
-                                        promotion_choice = pawnPromotion(screen, game_state.white_to_move)
-                                    game_state.makeMove(valid_moves[i], promotion_choice)
-                                    move_made = True
-                                    animate = True
-                                    square_selected = ()
-                                    player_clicks = []
-                    dragging = False
-                    drag_piece = None
-                    drag_start_square = None
-
+                    if col < 8 and row < 8:
+                        move = ChessEngine.Move(drag_start_square, (row, col), game_state.board)
+                        for i in range(len(valid_moves)):
+                            if move == valid_moves[i]:
+                                promotion_choice = None
+                                if move.is_pawn_promotion:
+                                    promotion_choice = pawnPromotion(screen, game_state.white_to_move)
+                                game_state.makeMove(valid_moves[i], promotion_choice)
+                                move_made = True
+                                animate = True
+                                square_selected = ()
+                                player_clicks = []
+                        dragging = False
+                        drag_piece = None
+                        drag_start_square = None
             elif e.type == p.MOUSEMOTION:
                 if dragging:
                     drag_start_pos = p.mouse.get_pos()
-
             elif e.type == p.KEYDOWN:
                 if e.key in (p.K_z, p.K_u):
-                    if len(game_state.move_log) >= 2:
+                    if len(game_state.move_log) >= 1:
                         game_state.undoMove()
-                        game_state.undoMove()
+                        if len(game_state.move_log) >= 1:
+                            game_state.undoMove()
                     move_made = True
                     animate = False
                     game_over = False
@@ -299,6 +296,9 @@ def promptSaveFiles(screen, screenshot_path, pgn_path, game_state, temp_dir):
     white_name = waitForInput().strip()
     displayText(screen, "Enter Black player's name: ", font, (20, 50))
     black_name = waitForInput().strip()
+
+    if black_name == "":
+        black_name = "Computer"
 
     result = "1-0" if game_state.white_to_move else "0-1"
     termination = f"{black_name} wins by checkmate" if not game_state.white_to_move else f"{white_name} wins by checkmate"
