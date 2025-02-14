@@ -41,6 +41,7 @@ def main():
     p.display.set_caption("Chess Game!")
     clock = p.time.Clock()
     multiplayer_mode = chooseGameMode(screen)
+    showHelpMenu(screen)
     player_one = True
     player_two = multiplayer_mode
     screen.fill(p.Color("#FFFFFF"))
@@ -99,6 +100,9 @@ def main():
                                         drag_start_square = None
                                 if not move_made:
                                     player_clicks = [square_selected]
+                                    dragging = False
+                                    drag_piece = None
+                                    drag_start_square = None
             elif e.type == p.MOUSEBUTTONUP:
                 if dragging:
                     location = p.mouse.get_pos()
@@ -119,6 +123,12 @@ def main():
                         dragging = False
                         drag_piece = None
                         drag_start_square = None
+                    else:
+                        # If the mouse was released outside the board, cancel dragging
+                        dragging = False
+                        drag_piece = None
+                        drag_start_square = None
+                        player_clicks = []
             elif e.type == p.MOUSEMOTION:
                 if dragging:
                     drag_start_pos = p.mouse.get_pos()
@@ -152,6 +162,14 @@ def main():
                 if e.key in (p.K_e, p.K_q):
                     p.quit()
                     sys.exit()
+            elif e.type == p.KEYUP:
+                if e.key == p.K_h:
+                    show_help = False
+
+        keys = p.key.get_pressed()
+        if keys[p.K_h]:
+            show_help = True
+            drawHelpMenu(screen)
 
         if not game_over and not human_turn and not move_undone:
             if not ai_thinking:
@@ -228,7 +246,7 @@ def chooseGameMode(screen):
     )
     p.draw.rect(screen, title_bg_color, title_bg_rect, border_radius=20)
     title_rect = p.Rect(title_x_position, 100, title_text_width, title_text_height)
-    text_friend = font_button.render("Pass and Play with a Friend", True, p.Color("white"))
+    text_friend = font_button.render("Pass and Play with Friend", True, p.Color("white"))
     text_computer = font_button.render("Play with the Computer", True, p.Color("white"))
     button_width = max(text_friend.get_width(), text_computer.get_width()) + 20
     button_height = 50
@@ -260,6 +278,71 @@ def chooseGameMode(screen):
                     return False
 
         p.display.flip()
+
+def drawHelpMenu(screen):
+    """
+    Draw the help menu on the screen.
+    """
+    background = p.image.load('images/background.jpg')
+    background = p.transform.smoothscale(background, (BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH, BOARD_HEIGHT))
+    overlay = p.Surface((BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH, BOARD_HEIGHT), p.SRCALPHA)
+    overlay.fill((0, 0, 139, 100))
+    background.blit(overlay, (0, 0))
+    font_title = p.font.SysFont("Roboto", 48, True, False)
+    font_button = p.font.SysFont("Roboto", 36, True, False)
+    title_color = p.Color("white")
+    button_base_color = p.Color("#1C75D9")
+    title_bg_color = p.Color("#155D8B")
+    title_text = font_title.render("HELP MENU", True, title_color)
+    title_text_width = title_text.get_width()
+    title_text_height = title_text.get_height()
+    padding = 18.9
+    title_x_position = (BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH) // 2 - title_text_width // 2
+    title_bg_rect = p.Rect(
+        title_x_position - padding,
+        100 - padding,
+        title_text_width + (2 * padding),
+        title_text_height + (2 * padding)
+    )
+    p.draw.rect(screen, title_bg_color, title_bg_rect, border_radius=20)
+    title_rect = p.Rect(title_x_position, 100, title_text_width, title_text_height)
+    help_texts = [
+        "U, Z - Undo Move",
+        "P - Screenshot",
+        "E - Exit",
+        "H - Hold H to show this Help Menu",
+    ]
+    help_text_surfaces = [font_button.render(text, True, p.Color("white")) for text in help_texts]
+
+    while True:
+        screen.blit(background, (0, 0))
+        p.draw.rect(screen, title_bg_color, title_bg_rect, border_radius=20)
+        screen.blit(title_text, title_rect)
+
+        text_y = 250
+        for text_surface in help_text_surfaces:
+            text_rect = text_surface.get_rect(center=((BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH) // 2, text_y))
+            screen.blit(text_surface, text_rect)
+            text_y += 60
+
+        for e in p.event.get():
+            if e.type == p.QUIT:
+                p.quit()
+                sys.exit()
+            elif e.type in [p.KEYDOWN, p.MOUSEBUTTONDOWN]:
+                return
+
+        p.display.flip()
+
+def showHelpMenu(screen):
+    """
+    Show the help menu before the board is loaded and wait until the user presses any key or click.
+    """
+    drawHelpMenu(screen)
+    while True:
+        for e in p.event.get():
+            if e.type in [p.KEYDOWN, p.MOUSEBUTTONDOWN]:
+                return
 
 def drawGameState(screen, game_state, valid_moves, square_selected, dragging, drag_piece, drag_start_pos, drag_start_square):
     """
@@ -295,10 +378,10 @@ def highlightSquares(screen, game_state, valid_moves, square_selected):
             # highlight selected square
             s = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
             s.set_alpha(100)
-            s.fill(p.Color('blue'))
+            s.fill(p.Color('yellow'))
             screen.blit(s, (col * SQUARE_SIZE, row * SQUARE_SIZE))
             # highlight moves from that square
-            s.fill(p.Color('green'))
+            s.fill(p.Color('yellow'))
             for move in valid_moves:
                 if move.start_row == row and move.start_col == col:
                     screen.blit(s, (move.end_col * SQUARE_SIZE, move.end_row * SQUARE_SIZE))
@@ -392,6 +475,10 @@ def animateMove(move, screen, board, clock):
     d_col = move.end_col - move.start_col
     frames_per_square = 5  # Reduced frames per square for faster animation
     frame_count = (abs(d_row) + abs(d_col)) * frames_per_square
+
+    if frame_count == 0:
+        return  # If frame_count is zero, skip the animation
+
     for frame in range(frame_count + 1):
         row, col = (move.start_row + d_row * frame / frame_count, move.start_col + d_col * frame / frame_count)
         drawBoard(screen)
