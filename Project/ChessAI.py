@@ -1,6 +1,4 @@
-"""
-Handling the AI moves.
-"""
+import ChessEngine
 import random
 
 piece_score = {"K": 0, "Q": 9, "R": 5, "B": 3, "N": 3, "p": 1}
@@ -40,7 +38,7 @@ pawn_scores = [[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
                [0.25, 0.15, 0.1, 0.2, 0.2, 0.1, 0.15, 0.25],
                [0.25, 0.3, 0.3, 0.0, 0.0, 0.3, 0.3, 0.25],
                [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]]
-               
+
 
 queen_scores = [[0.0, 0.2, 0.2, 0.3, 0.3, 0.2, 0.2, 0.0],
                 [0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2],
@@ -97,15 +95,24 @@ CHECKMATE = 1000
 STALEMATE = 0
 DEPTH = 3
 
-
 def findBestMove(game_state, valid_moves, return_queue):
+    """
+    Finds the best move by evaluating all possible moves and selecting the one with the highest score.
+    """
     global next_move
     next_move = None
     random.shuffle(valid_moves)
-    findMoveNegaMaxAlphaBeta(game_state, valid_moves, DEPTH, -CHECKMATE, CHECKMATE,
-                             1 if game_state.white_to_move else -1)
+    # Check for immediate threats and mate-in-one scenarios
+    for move in valid_moves:
+        game_state.makeMove(move)
+        if game_state.checkmate:
+            game_state.undoMove()
+            return_queue.put(move)
+            return
+        game_state.undoMove()
+    # Use NegaMax with Alpha-Beta pruning to find the best move
+    findMoveNegaMaxAlphaBeta(game_state, valid_moves, DEPTH, -CHECKMATE, CHECKMATE, 1 if game_state.white_to_move else -1)
     return_queue.put(next_move)
-
 
 # Add these global variables to track board history and half-move count
 board_states = {}
@@ -141,7 +148,6 @@ def isInsufficientMaterial(game_state):
         return True
     return False
 
-
 def isThreefoldRepetition(game_state):
     """
     Check for threefold repetition using a simplified board state.
@@ -153,14 +159,12 @@ def isThreefoldRepetition(game_state):
         return True
     return False
 
-
 def isFiftyMoveRule():
     """
     Check for the 50-move rule.
     """
     global half_move_count
     return half_move_count >= 100
-
 
 def scoreBoard(game_state):
     """
@@ -191,7 +195,6 @@ def scoreBoard(game_state):
                 elif piece[0] == "b":
                     score -= piece_score[piece[1]] + piece_position_score
     return score
-
 
 def findMoveNegaMaxAlphaBeta(game_state, valid_moves, depth, alpha, beta, turn_multiplier):
     """
