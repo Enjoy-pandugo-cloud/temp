@@ -57,7 +57,7 @@ class GameState:
 
         # pawn promotion
         if move.is_pawn_promotion:
-            self.board[move.end_row][move.end_col] = move.piece_moved[0] + promotion_choice[1]
+            self.board[move.end_row][move.end_col] = move.piece_moved[0] + (promotion_choice if promotion_choice else 'Q')
             move.promotion_choice = promotion_choice
 
         # enpassant move
@@ -68,7 +68,7 @@ class GameState:
         if move.piece_moved[1] == "p" and abs(move.start_row - move.end_row) == 2:  # only on 2 square pawn advance
             self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_col)
         else:
-            self.enpassant_possible = ()
+            self.enpassant_possible = ()  # no en passant
 
         # castle move
         if move.is_castle_move:
@@ -84,10 +84,10 @@ class GameState:
         # update castling rights - whenever it is a rook or king move
         self.updateCastleRights(move)
         self.castle_rights_log.append(CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
-                                                   self.current_castling_rights.wqs, self.current_castling_rights.bqs))
+                                                self.current_castling_rights.wqs, self.current_castling_rights.bqs))
 
         # update board state for threefold repetition
-        self.updateBoardState()
+        self.updateBoardState(increment=True)
 
     def undoMove(self):
         """
@@ -108,8 +108,9 @@ class GameState:
                 self.board[move.end_row][move.end_col] = "--"  # leave landing square blank
                 self.board[move.start_row][move.end_col] = move.piece_captured
 
-            self.enpassant_possible_log.pop()
-            self.enpassant_possible = self.enpassant_possible_log[-1]
+            if len(self.enpassant_possible_log) > 0:
+                self.enpassant_possible_log.pop()
+                self.enpassant_possible = self.enpassant_possible_log[-1] if len(self.enpassant_possible_log) > 0 else ()
 
             # undo castle rights
             self.castle_rights_log.pop()  # get rid of the new castle rights from the move we are undoing
@@ -126,7 +127,7 @@ class GameState:
             self.stalemate = False
 
             # update board state for threefold repetition
-            self.updateBoardState()
+            self.updateBoardState(increment=False)
 
     def updateCastleRights(self, move):
         """
@@ -162,19 +163,25 @@ class GameState:
                 elif move.start_col == 7:  # right rook
                     self.current_castling_rights.bks = False
 
-    def updateBoardState(self):
+    def updateBoardState(self, increment=True):
         """
         Update the board state for threefold repetition rule.
         """
         board_fen = str(self.board) + str(self.white_to_move)
-        self.board_states[board_fen] = self.board_states.get(board_fen, 0) + 1
+        if increment:
+            self.board_states[board_fen] = self.board_states.get(board_fen, 0) + 1
+        else:
+            if board_fen in self.board_states:
+                self.board_states[board_fen] -= 1
+                if self.board_states[board_fen] <= 0:
+                    del self.board_states[board_fen]
 
     def getValidMoves(self):
         """
         All moves considering checks.
         """
         temp_castle_rights = CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
-                                          self.current_castling_rights.wqs, self.current_castling_rights.bqs)
+                                        self.current_castling_rights.wqs, self.current_castling_rights.bqs)
         # advanced algorithm
         moves = []
         self.in_check, self.pins, self.checks = self.checkForPinsAndChecks()
@@ -615,7 +622,7 @@ class Move:
 
     def getChessNotation(self):
         if self.is_pawn_promotion:
-            return self.getRankFile(self.end_row, self.end_col) + "=" + self.promotion_choice[1]
+            return self.getRankFile(self.end_row, self.end_col) + "=" + (self.promotion_choice if self.promotion_choice else 'Q')
         if self.is_castle_move:
             if self.end_col == 6:
                 return "0-0"
@@ -645,7 +652,7 @@ class Move:
             if self.is_capture:
                 return self.cols_to_files[self.start_col] + "x" + end_square
             else:
-                return end_square + "=" + self.promotion_choice[1] if self.is_pawn_promotion else end_square
+                return end_square + "=" + (self.promotion_choice if self.promotion_choice else 'Q') if self.is_pawn_promotion else end_square
         move_string = self.piece_moved[1]
         if self.is_capture:
             move_string += "x"
