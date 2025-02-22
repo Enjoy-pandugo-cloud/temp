@@ -37,6 +37,8 @@ class GameState:
         self.current_castling_rights = CastleRights(True, True, True, True)
         self.castle_rights_log = [CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
                                                self.current_castling_rights.wqs, self.current_castling_rights.bqs)]
+        self.board_states = {}
+        self.half_move_count = 0
 
     def makeMove(self, move, promotion_choice=None):
         """
@@ -71,12 +73,10 @@ class GameState:
         # castle move
         if move.is_castle_move:
             if move.end_col - move.start_col == 2:  # king-side castle move
-                self.board[move.end_row][move.end_col - 1] = self.board[move.end_row][
-                    move.end_col + 1]  # moves the rook to its new square
+                self.board[move.end_row][move.end_col - 1] = self.board[move.end_row][move.end_col + 1]  # moves the rook to its new square
                 self.board[move.end_row][move.end_col + 1] = '--'  # erase old rook
             else:  # queen-side castle move
-                self.board[move.end_row][move.end_col + 1] = self.board[move.end_row][
-                    move.end_col - 2]  # moves the rook to its new square
+                self.board[move.end_row][move.end_col + 1] = self.board[move.end_row][move.end_col - 2]  # moves the rook to its new square
                 self.board[move.end_row][move.end_col - 2] = '--'  # erase old rook
 
         self.enpassant_possible_log.append(self.enpassant_possible)
@@ -85,6 +85,15 @@ class GameState:
         self.updateCastleRights(move)
         self.castle_rights_log.append(CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
                                                    self.current_castling_rights.wqs, self.current_castling_rights.bqs))
+        self.half_move_count += 1
+        if move.piece_moved[1] == 'p' or move.is_capture:
+            self.half_move_count = 0
+
+        board_fen = str(self.board) + str(self.white_to_move)
+        if board_fen in self.board_states:
+            self.board_states[board_fen] += 1
+        else:
+            self.board_states[board_fen] = 1
 
     def undoMove(self):
         """
@@ -110,8 +119,7 @@ class GameState:
 
             # undo castle rights
             self.castle_rights_log.pop()  # get rid of the new castle rights from the move we are undoing
-            self.current_castling_rights = self.castle_rights_log[
-                -1]  # set the current castle rights to the last one in the list
+            self.current_castling_rights = self.castle_rights_log[-1]  # set the current castle rights to the last one in the list
             # undo the castle move
             if move.is_castle_move:
                 if move.end_col - move.start_col == 2:  # king-side
@@ -122,6 +130,13 @@ class GameState:
                     self.board[move.end_row][move.end_col + 1] = '--'
             self.checkmate = False
             self.stalemate = False
+            self.half_move_count -= 1
+            board_fen = str(self.board) + str(self.white_to_move)
+            if board_fen in self.board_states:
+                if self.board_states[board_fen] == 1:
+                    del self.board_states[board_fen]
+                else:
+                    self.board_states[board_fen] -= 1
 
     def updateCastleRights(self, move):
         """
@@ -187,17 +202,14 @@ class GameState:
                     valid_squares = [(check_row, check_col)]
                 else:
                     for i in range(1, 8):
-                        valid_square = (king_row + check[2] * i,
-                                        king_col + check[3] * i)  # check[2] and check[3] are the check directions
+                        valid_square = (king_row + check[2] * i, king_col + check[3] * i)  # check[2] and check[3] are the check directions
                         valid_squares.append(valid_square)
-                        if valid_square[0] == check_row and valid_square[
-                            1] == check_col:  # once you get to piece and check
+                        if valid_square[0] == check_row and valid_square[1] == check_col:  # once you get to piece and check
                             break
                 # get rid of any moves that don't block check or move king
                 for i in range(len(moves) - 1, -1, -1):  # iterate through the list backwards when removing elements
                     if moves[i].piece_moved[1] != "K":  # move doesn't move king so it must block or capture
-                        if not (moves[i].end_row,
-                                moves[i].end_col) in valid_squares:  # move doesn't block or capture piece
+                        if not (moves[i].end_row, moves[i].end_col) in valid_squares:  # move doesn't block or capture piece
                             moves.remove(moves[i])
             else:  # double check, king has to move
                 self.getKingMoves(king_row, king_col, moves)
@@ -212,11 +224,14 @@ class GameState:
             if self.inCheck():
                 self.checkmate = True
             else:
-                # TODO stalemate on repeated moves
                 self.stalemate = True
         else:
             self.checkmate = False
             self.stalemate = False
+
+        if self.isThreefoldRepetition() or self.isFiftyMoveRule() or self.isInsufficientMaterial():
+            self.stalemate = True
+            moves = []
 
         self.current_castling_rights = temp_castle_rights
         return moves
@@ -556,6 +571,31 @@ class GameState:
                 move_str += "#"
             pgn.append(move_str)
         return " ".join(pgn)
+
+    def isThreefoldRepetition(self):
+        """
+        Check for threefold repetition using a simplified board state.
+        """
+        board_fen = str(self.board) + str(self.white_to_move)
+        return self.board_states.get(board_fen, 0) >= 3
+
+    def isFiftyMoveRule(self):
+        """
+        Check for the 50-move rule.
+        """
+        return self.half_move_count >= 100
+
+    def isInsufficientMaterial(self):
+        """
+        Check for insufficient material to checkmate.
+        """
+        pieces = [piece for row in self.board for piece in row if piece != "--"]
+        if len(pieces) == 2:
+            return True
+        if len(pieces) == 3:
+            if any(piece[1] in "BN" for piece in pieces):
+                return True
+        return False
 
 class CastleRights:
     def __init__(self, wks, bks, wqs, bqs):
