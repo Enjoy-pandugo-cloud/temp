@@ -1,0 +1,7 @@
+[Date "11.02.2025"]
+[White "s"]
+[Black "B"]
+[Result "0-1"]
+[Termination "B wins by checkmate"]
+
+1. e4 Nf6 2. e5 Ne4 3. d4 Nc6 4. Qd3 d5 5. f3 Nb4 6. Qb3 Be6 7. Qxb4 Qd7 8. Qxb7 Qc8 9. Qc6 Bd7 10. Qxd5 Rb8 11. Qxe4 e6 12. Bc4 Rb4 13. b3 Rg8 14. Ba3 Qb8 15. Bxb4 Qxb4 16. c3 Bc8 17. cxb4 Bxb4 18. Ke2 Kf8 19. Qxh7 Bb7 20. Nd2 Be7 21. Ne4 c5 22. dxc5 Bc6 23. Rd1 f6 24. exf6 Bxf6 25. Nxf6 gxf6 26. Bxe6 Rxg2 27. Kf1 Rg7 28. Rd8 Be8 29. Rxe8 Kxe8 30. Qxg7 f5 31. Qf7 Kd8 32. Qxa7 Ke8 33. Qd7 Kf8 34. c6 f4 35. c7

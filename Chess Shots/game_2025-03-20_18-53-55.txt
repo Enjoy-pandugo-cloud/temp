@@ -1,0 +1,7 @@
+[Date "20.03.2025"]
+[White "Sai"]
+[Black "Computer"]
+[Result "1-0"]
+[Termination "Computer wins by checkmate"]
+
+1. e4 Nf6 2. e5 Ne4 3. d4 Nc6 4. Qd3 d5 5. f3 Nb4 6. Qb3 Qd7 7. Qxb4 e6 8. Qb3 Kd8 9. fxe4 dxe4 10. Be3 Be7 11. Bc4 Ke8 12. Ne2 Qc6 13. Bb5 Bh4 14. g3 Bxg3 15. hxg3 Kf8 16. Bxc6 bxc6 17. Qb4 Kg8 18. Qc5 Rb8 19. Qxa7 Rxb2 20. Qxc7 Bd7 21. Qxd7 h6 22. a4 Rxc2 23. a5 c5 24. dxc5 Kh7 25. Qxf7 Rxe2 26. Kxe2 -a8 27. Bxh6 -a8 28. Qxg7#
