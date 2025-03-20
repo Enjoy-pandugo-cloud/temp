@@ -1,7 +1,0 @@
-[Date "11.02.2025"]
-[White "y"]
-[Black "y"]
-[Result "1-0"]
-[Termination "y wins by checkmate"]
-
-1. e4 e5 2. Ke2 Ke7 3. Kd3 Kd6 4. Kc4 Kc6 5. Qe1 Kb6 6. Kd5 Qf6 7. Nc3 Qe6
